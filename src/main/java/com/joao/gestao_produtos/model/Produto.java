@@ -6,8 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.math.BigDecimal;
 
-@Entity
-@Table(name= "tb_produto")
+@Entity // Informa ao spring que essa classe representa uma tabela no banco de dados.
+@Table(name= "tb_produto") // Define o nome da tabela no PostgreSQL
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -28,4 +28,6 @@ public class Produto {
 
     @Column(nullable = false)
     private Integer quantidadeEstoque;
+
+    //adicionar imagem para cada produto futuramente
 }
