@@ -11,7 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@RestControllerAdvice // Avisa que esta classe intercepta erros da API toda
+@RestControllerAdvice
 public class GlobalExceptionHandler {
 
     // Captura especificamente os erros de validação do @Valid
