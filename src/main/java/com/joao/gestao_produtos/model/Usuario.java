@@ -17,7 +17,7 @@ public class Usuario {
     private Long id;
 
     @Column(nullable = false, length = 100)
-    private String name;
+    private String nome;
 
     @Column(nullable = false, unique = true, length = 100) // unique=true impede e-mails repetidos no banco
     private String email;

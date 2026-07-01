@@ -1,7 +1,9 @@
 package com.joao.gestao_produtos.controller;
 
 import com.joao.gestao_produtos.model.Produto;
+import com.joao.gestao_produtos.model.Usuario;
 import com.joao.gestao_produtos.repository.ProdutoRepository;
+import com.joao.gestao_produtos.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,31 +18,45 @@ public class ProdutoController {
     @Autowired
     private ProdutoRepository produtoRepository;
 
-    // Rota 1: Cadastrar um produto.
-    @PostMapping
-    public ResponseEntity<Produto> criar(@RequestBody Produto produto) {
-        // @RequestBody captura o JSON enviado pelo Postman/React e o transforma em um objeto Produto
-        Produto novoProduto = produtoRepository.save(produto);
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
-        // Retorna o produto criado com o status HTTP 211 (Created)
-        return ResponseEntity.status(HttpStatus.CREATED).body(novoProduto);
+    // Rota 1: Cadastrar um produto.
+    @PostMapping("/usuario/{usuarioId}")
+    public ResponseEntity<Produto> criar(@PathVariable Long usuarioId, @RequestBody Produto produto) {
+
+        Usuario usuario = usuarioRepository.findById(usuarioId) // Busca o usuário no banco. Se não existir, retorna erro 404.
+                .orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
+
+        produto.setUsuario(usuario); // Vincula o usuário encontrado ao produto que está sendo criado
+
+        Produto novoProduto = produtoRepository.save(produto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(novoProduto); // Retorna o produto criado com o status HTTP 211 (Created)
     }
 
     // Rota 2: Listar todos os produtos.
-    @GetMapping
-    public ResponseEntity<List<Produto>> listarTodos() {
-        List<Produto> produtos = produtoRepository.findAll();
+    @GetMapping("/usuario/{usuarioId}")
+    public ResponseEntity<List<Produto>> listarPorUsuario(@PathVariable Long usuarioId) {
+
+        // Busca todos os produtos e filtra para trazer apenas os que têm o ID do usuário correto.
+        List<Produto> produtos = produtoRepository.findAll().stream()
+                .filter(p -> p.getUsuario().getId().equals(usuarioId))
+                .toList();
 
         // Retorna a lista de produtos com o status HTTP 200 (OK)
         return ResponseEntity.ok(produtos);
     }
 
     //Rota 3: Atualizar produto.
-    @PutMapping("/{id}")
-    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @RequestBody Produto produtoAtualizado) {
+    @PutMapping("/{id}/usuario/{usuarioId}")
+    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @PathVariable Long usuarioId, @RequestBody Produto produtoAtualizado) {
         // @PathVariable captura o ID da URL. findById busca o produto no banco.
         return produtoRepository.findById(id)
                 .map(produtoExistente -> {
+                    // Validação de segurança: o produto pertence ao utilizador informado?
+                    if (!produtoExistente.getUsuario().getId().equals(usuarioId)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Produto>build(); // Retorna 403 Proibido
+                    }
 
                     // Atualiza os campos do produto antigo com os novos dados recebidos
                     produtoExistente.setNome(produtoAtualizado.getNome());
@@ -50,21 +66,25 @@ public class ProdutoController {
 
                     // Salva as alterações e retorna 200 OK com o produto atualizado
                     Produto salvo = produtoRepository.save(produtoExistente);
-                    return ResponseEntity.ok(salvo);
+                    return ResponseEntity.ok(salvo); // retorna 200 ok
                 })
 
                 // Se o Id nao existe no banco, returna 404 Not Found
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+    @DeleteMapping("/{id}/usuario/{usuarioId}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id, @PathVariable Long usuarioId) {
+        return produtoRepository.findById(id)
+                .map(produtoExistente -> {
+                    // Validação de segurança: o produto pertence ao utilizador informado?
+                    if (!produtoExistente.getUsuario().getId().equals(usuarioId)){
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build(); // Retorna 403 Proibido
+                    }
 
-        if (!produtoRepository.existsById(id)) { // existsById checa se o produto realmente existe no banco antes de tentar deletar
-            return ResponseEntity.notFound().build(); // Retorna 404 se não encontrar
-        }
-
-        produtoRepository.deleteById(id);
-        return ResponseEntity.noContent().build(); // Retorna status 204 No Content (Deletado com sucesso)
+                    produtoRepository.delete(produtoExistente);
+                    return ResponseEntity.noContent().<Void>build(); // Retorna 204 Sucesso
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 }
