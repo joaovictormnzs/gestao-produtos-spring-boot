@@ -30,4 +30,8 @@ public class Produto {
     private Integer quantidadeEstoque;
 
     //adicionar imagem para cada produto futuramente
+
+    @ManyToOne // Muitos para um
+    @JoinColumn(name = "usuario_id", nullable = false)
+    private Usuario usuario;
 }
