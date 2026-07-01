@@ -4,6 +4,7 @@ import com.joao.gestao_produtos.model.Produto;
 import com.joao.gestao_produtos.model.Usuario;
 import com.joao.gestao_produtos.repository.ProdutoRepository;
 import com.joao.gestao_produtos.repository.UsuarioRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +24,7 @@ public class ProdutoController {
 
     // Rota 1: Cadastrar um produto.
     @PostMapping("/usuario/{usuarioId}")
-    public ResponseEntity<Produto> criar(@PathVariable Long usuarioId, @RequestBody Produto produto) {
+    public ResponseEntity<Produto> criar(@PathVariable Long usuarioId, @Valid @RequestBody Produto produto) {
 
         Usuario usuario = usuarioRepository.findById(usuarioId) // Busca o usuário no banco. Se não existir, retorna erro 404.
                 .orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
@@ -49,7 +50,7 @@ public class ProdutoController {
 
     //Rota 3: Atualizar produto.
     @PutMapping("/{id}/usuario/{usuarioId}")
-    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @PathVariable Long usuarioId, @RequestBody Produto produtoAtualizado) {
+    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @PathVariable Long usuarioId, @Valid @RequestBody Produto produtoAtualizado) {
         // @PathVariable captura o ID da URL. findById busca o produto no banco.
         return produtoRepository.findById(id)
                 .map(produtoExistente -> {
