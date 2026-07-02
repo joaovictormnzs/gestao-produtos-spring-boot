@@ -1,5 +1,8 @@
 package com.joao.gestao_produtos.controller;
 
+import com.joao.gestao_produtos.dto.ProdutoCreateDTO;
+import com.joao.gestao_produtos.dto.ProdutoResponseDTO;
+import com.joao.gestao_produtos.dto.ProdutoUpdateDTO;
 import com.joao.gestao_produtos.model.Produto;
 import com.joao.gestao_produtos.model.Usuario;
 import com.joao.gestao_produtos.repository.ProdutoRepository;
@@ -22,70 +25,102 @@ public class ProdutoController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    // Rota 1: Cadastrar um produto.
+    // Rota 1: Criar um produto.
     @PostMapping("/usuario/{usuarioId}")
-    public ResponseEntity<Produto> criar(@PathVariable Long usuarioId, @Valid @RequestBody Produto produto) {
+    public ResponseEntity<?> criar(@PathVariable Long usuarioId, @Valid @RequestBody ProdutoCreateDTO dto) {
 
-        Usuario usuario = usuarioRepository.findById(usuarioId) // Busca o usuário no banco. Se não existir, retorna erro 404.
-                .orElseThrow(() -> new RuntimeException("Usuario nao encontrado"));
+        return usuarioRepository.findById(usuarioId)
+                .map(usuarioCriador -> {
+                    Produto produto = new Produto();
+                    produto.setNome(dto.getNome());
+                    produto.setDescricao(dto.getDescricao());
+                    produto.setPreco(dto.getPreco());
+                    produto.setQuantidadeEstoque(dto.getQuantidadeEstoque());
 
-        produto.setUsuario(usuario); // Vincula o usuário encontrado ao produto que está sendo criado
+                    produto.setUsuario(usuarioCriador);
 
-        Produto novoProduto = produtoRepository.save(produto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(novoProduto); // Retorna o produto criado com o status HTTP 211 (Created)
+                    Produto salvo = produtoRepository.save(produto);
+                    return ResponseEntity.status(HttpStatus.CREATED).body(converterParaDTO(salvo));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     // Rota 2: Listar todos os produtos.
     @GetMapping("/usuario/{usuarioId}")
-    public ResponseEntity<List<Produto>> listarPorUsuario(@PathVariable Long usuarioId) {
+    public ResponseEntity<List<ProdutoResponseDTO>> listarPorUsuario(@PathVariable Long usuarioId) {
+        // Busca todos os produtos do banco
+        List<Produto> produtos = produtoRepository.findAll();
 
-        // Busca todos os produtos e filtra para trazer apenas os que têm o ID do usuário correto.
-        List<Produto> produtos = produtoRepository.findAll().stream()
-                .filter(p -> p.getUsuario().getId().equals(usuarioId))
+        List<ProdutoResponseDTO> dtos = produtos.stream()
+                .filter(produto -> produto.getUsuario() != null && produto.getUsuario().getId().equals(usuarioId))
+                .map(this::converterParaDTO)
                 .toList();
 
-        // Retorna a lista de produtos com o status HTTP 200 (OK)
-        return ResponseEntity.ok(produtos);
+        return ResponseEntity.ok(dtos);
     }
 
-    //Rota 3: Atualizar produto.
+    // Rota 3: Listar produtos por id
+    @GetMapping("/{id}")
+    public ResponseEntity<ProdutoResponseDTO> buscarPorId(@PathVariable Long id) {
+        return produtoRepository.findById(id)
+                .map(produto -> ResponseEntity.ok(converterParaDTO(produto)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    //Rota 4: Atualizar produto.
     @PutMapping("/{id}/usuario/{usuarioId}")
-    public ResponseEntity<Produto> atualizar(@PathVariable Long id, @PathVariable Long usuarioId, @Valid @RequestBody Produto produtoAtualizado) {
-        // @PathVariable captura o ID da URL. findById busca o produto no banco.
+    public ResponseEntity<?> atualizar(@PathVariable Long id, @PathVariable Long usuarioId, @Valid @RequestBody ProdutoUpdateDTO dto) {
+
         return produtoRepository.findById(id)
                 .map(produtoExistente -> {
-                    // Validação de segurança: o produto pertence ao utilizador informado?
+                    // o produto pertence ao utilizador informado?
                     if (!produtoExistente.getUsuario().getId().equals(usuarioId)) {
-                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Produto>build(); // Retorna 403 Proibido
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // Retorna 403 Proibido
                     }
 
-                    // Atualiza os campos do produto antigo com os novos dados recebidos
-                    produtoExistente.setNome(produtoAtualizado.getNome());
-                    produtoExistente.setDescricao(produtoAtualizado.getDescricao());
-                    produtoExistente.setPreco(produtoAtualizado.getPreco());
-                    produtoExistente.setQuantidadeEstoque(produtoAtualizado.getQuantidadeEstoque());
+                    // Atualiza os campos usando os dados que vieram do DTO
+                    produtoExistente.setNome(dto.getNome());
+                    produtoExistente.setDescricao(dto.getDescricao());
+                    produtoExistente.setPreco(dto.getPreco());
+                    produtoExistente.setQuantidadeEstoque(dto.getQuantidadeEstoque());
 
-                    // Salva as alterações e retorna 200 OK com o produto atualizado
+                    // Salva as alterações
                     Produto salvo = produtoRepository.save(produtoExistente);
-                    return ResponseEntity.ok(salvo); // retorna 200 ok
-                })
 
-                // Se o Id nao existe no banco, returna 404 Not Found
-                .orElse(ResponseEntity.notFound().build());
+                    return ResponseEntity.ok(converterParaDTO(salvo));// Retorna 200 OK
+                })
+                .orElse(ResponseEntity.notFound().build()); // Retorna 404 Not Found
     }
 
+    // Rota 5: Deletar produto.
     @DeleteMapping("/{id}/usuario/{usuarioId}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id, @PathVariable Long usuarioId) {
+    public ResponseEntity<?> deletar(@PathVariable Long id, @PathVariable Long usuarioId) {
         return produtoRepository.findById(id)
-                .map(produtoExistente -> {
-                    // Validação de segurança: o produto pertence ao utilizador informado?
-                    if (!produtoExistente.getUsuario().getId().equals(usuarioId)){
-                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build(); // Retorna 403 Proibido
+                .map(produto -> {
+                    // o produto pertence ao utilizador informado?
+                    if (!produto.getUsuario().getId().equals(usuarioId)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // Retorna 403 Proibido
                     }
 
-                    produtoRepository.delete(produtoExistente);
-                    return ResponseEntity.noContent().<Void>build(); // Retorna 204 Sucesso
+                    produtoRepository.delete(produto);
+                    return ResponseEntity.noContent().build(); // Retorna 204 No Content
                 })
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.notFound().build()); // Retorna 404 Not Found
+    }
+
+    // Metodo auxiliar.
+    private ProdutoResponseDTO converterParaDTO(Produto produto) {
+        ProdutoResponseDTO dto = new ProdutoResponseDTO();
+        dto.setId(produto.getId());
+        dto.setNome(produto.getNome());
+        dto.setDescricao(produto.getDescricao());
+        dto.setPreco(produto.getPreco());
+        dto.setQuantidadeEstoque(produto.getQuantidadeEstoque());
+
+        if (produto.getUsuario() != null) {
+            dto.setUsuarioId(produto.getUsuario().getId());
+            dto.setUsuarioNome(produto.getUsuario().getNome());
+        }
+        return dto;
     }
 }

@@ -1,7 +1,11 @@
 package com.joao.gestao_produtos.controller;
 
+import com.joao.gestao_produtos.dto.UsuarioCreateDTO;
+import com.joao.gestao_produtos.dto.UsuarioResponseDTO;
+import com.joao.gestao_produtos.dto.UsuarioUpdateDTO;
 import com.joao.gestao_produtos.model.Usuario;
 import com.joao.gestao_produtos.repository.UsuarioRepository;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,16 +20,69 @@ public class UsuarioController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    //Rota 1: Cadastro Usuario
+    //Rota 1: Criar Usuario
     @PostMapping
-    public ResponseEntity<Usuario> criar(@RequestBody Usuario usuario) {
-        Usuario novoUsuario = usuarioRepository.save(usuario);
-        return ResponseEntity.status(HttpStatus.CREATED).body(novoUsuario);
+    public ResponseEntity<UsuarioResponseDTO> criar(@Valid @RequestBody UsuarioCreateDTO dto) {
+        Usuario usuario = new Usuario();
+        usuario.setNome(dto.getNome());
+        usuario.setEmail(dto.getEmail());
+        usuario.setSenha(dto.getSenha());
+
+        Usuario salvo = usuarioRepository.save(usuario);
+        return ResponseEntity.status(HttpStatus.CREATED).body(converterParaDTO(salvo));
     }
 
     // Rota 2: Lista de usuarios
     @GetMapping
-    public ResponseEntity<List<Usuario>> listarTodos() {
-        return ResponseEntity.ok(usuarioRepository.findAll());
+    public ResponseEntity<List<UsuarioResponseDTO>> listarTodos() {
+        List<Usuario> usuarios = usuarioRepository.findAll();
+        List<UsuarioResponseDTO> dtos = usuarios.stream()
+                .map(this::converterParaDTO)
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
+
+    // Rota 3: Buscar usuario por id.
+    @GetMapping("/{id}")
+    public ResponseEntity<UsuarioResponseDTO> buscarPorId(@PathVariable Long id) {
+        return usuarioRepository.findById(id)
+                .map(usuario -> ResponseEntity.ok(converterParaDTO(usuario)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Rota 4: Atualizar dados cadastrais.
+    @PutMapping("/{id}")
+    public ResponseEntity<UsuarioResponseDTO> atualizar(@PathVariable Long id, @Valid @RequestBody UsuarioUpdateDTO dto) {
+        return usuarioRepository.findById(id)
+                .map(usuarioExistente -> {
+                    usuarioExistente.setNome(dto.getNome());
+                    usuarioExistente.setEmail(dto.getEmail());
+
+
+                    Usuario salvo = usuarioRepository.save(usuarioExistente);
+                    return ResponseEntity.ok(converterParaDTO(salvo));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    //Rota 5: Deletar Usuario
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        return usuarioRepository.findById(id)
+                .map(usuario -> {
+                    usuarioRepository.delete(usuario);
+                    return ResponseEntity.noContent().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // Metodo auxiliar.
+    private UsuarioResponseDTO converterParaDTO(Usuario usuario) {
+        UsuarioResponseDTO dto = new UsuarioResponseDTO();
+        dto.setId(usuario.getId());
+        dto.setNome(usuario.getNome());
+        dto.setEmail(usuario.getEmail());
+        return dto;
+    }
+
 }
