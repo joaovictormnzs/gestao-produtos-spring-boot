@@ -23,10 +23,10 @@ public class TokenService {
     public String gerarToken(Usuario usuario) {
         Date hoje = new Date();
         Date dataExpiracao = new Date(hoje.getTime() + expirationTime);
-
         return Jwts.builder()
                 .setIssuer("API Gestao de Produtos")
                 .setSubject(usuario.getEmail())
+                .claim("nome", usuario.getNome())
                 .setIssuedAt(hoje)
                 .setExpiration(dataExpiracao)
                 .signWith(secretKey)

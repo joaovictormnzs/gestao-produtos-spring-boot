@@ -15,7 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController // Define que esta classe é um controlador do tipo REST (retorna JSON).
-@RequestMapping("/api/produtos") // Define a url base para acessar as rotas.
+@RequestMapping("/api/produtos")
+@CrossOrigin(origins = "http://localhost:5173")// Define a url base para acessar as rotas.
 public class ProdutoController {
 
     @Autowired
@@ -78,15 +79,15 @@ public class ProdutoController {
 
     //Rota 4: Atualizar produto.
     @PutMapping("/{id}")
-    public ResponseEntity<ProdutoDTO.Response> atualizar(@PathVariable Long id, @Valid @RequestBody ProdutoDTO.Create dto,  Authentication authenctication) {
+    public ResponseEntity<?> atualizar(@PathVariable Long id, @Valid @RequestBody ProdutoDTO.Update dto,  Authentication authentication) {
 
-        Usuario usuarioLogado = (Usuario) authenctication.getPrincipal();
+        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
 
         return produtoRepository.findById(id)
                 .map(produtoExistente -> {
                     // o produto pertence ao utilizador informado?
                     if (!produtoExistente.getUsuario().getId().equals(usuarioLogado.getId())) {
-                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<ProdutoDTO.Response>build(); // Retorna 403 Proibido
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // Retorna 403 Proibido
                     }
 
                     // Atualiza os campos usando os dados que vieram do DTO
@@ -104,7 +105,7 @@ public class ProdutoController {
 
     // Rota 5: Deletar produto.
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletar(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> deletar(@PathVariable Long id, Authentication authentication) {
 
         Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
 
@@ -112,11 +113,11 @@ public class ProdutoController {
                 .map(produto -> {
                     // o produto pertence ao utilizador informado?
                     if (!produto.getUsuario().getId().equals(usuarioLogado.getId())) {
-                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build(); // Retorna 403 Proibido
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); // Retorna 403 Proibido
                     }
 
                     produtoRepository.delete(produto);
-                    return ResponseEntity.noContent().<Void>build(); // Retorna 204 No Content
+                    return ResponseEntity.noContent().build(); // Retorna 204 No Content
                 })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build()); // Retorna 404 Not Found
     }
